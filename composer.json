@@ -16,8 +16,8 @@
     "require":
     {
         "php": ">=5.6.6",
-        "this7/config": "~1.0",
-        "this7/logger": "~1.0"
+        "this7/config": "dev-master",
+        "this7/logger": "dev-master"
     },
     "autoload":
     {

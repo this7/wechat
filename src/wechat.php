@@ -9,5 +9,7 @@ namespace this7\wechat;
  */
 
 class wechat {
-
+    public function demo() {
+        echo "测试";
+    }
 }

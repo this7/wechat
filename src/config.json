@@ -1,0 +1,10 @@
+{
+    "defer": {
+        "name": "延时加载",
+        "value": false
+    },
+    "versions": {
+        "name": "版本号",
+        "value": "3.0"
+    }
+}

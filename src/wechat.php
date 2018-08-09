@@ -1,15 +1,41 @@
 <?php
-namespace this7\wechat;
 /**
- * This7 Frame
- * @Author: else
- * @Date:   2018-01-11 14:04:08
- * @Last Modified by:   qinuoyun
- * @Last Modified time: 2018-03-28 10:06:45
+ * this7 PHP Framework
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ *
+ * @copyright 2016-2018 Yan TianZeng<qinuoyun@qq.com>
+ * @license   http://www.opensource.org/licenses/mit-license.php MIT
+ * @link      http://www.ub-7.com
  */
+namespace this7\wechat;
+
+use this7\wechat\build\base;
 
 class wechat {
-    public function demo() {
-        echo "测试";
+    /**
+     * 静态链接
+     * @var [type]
+     */
+    protected static $link;
+
+    /**
+     * 单例调用
+     * @return [type] [description]
+     */
+    protected static function single() {
+        if (!self::$link) {
+            self::$link = new base();
+        }
+        return self::$link;
+    }
+
+    public function __call($method, $params) {
+        return call_user_func_array([self::single(), $method], $params);
+    }
+
+    public static function __callStatic($name, $arguments) {
+        return call_user_func_array([static::single(), $name], $arguments);
     }
 }

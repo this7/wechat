@@ -1,9 +1,45 @@
 {
-    "defer": {
+    "defer":
+    {
         "name": "延时加载",
         "value": false
     },
-    "versions": {
+    "appId":
+    {
+        "name": "公众号AppID",
+        "value": "wx869135a4fcd651e1"
+    },
+    "appSecret":
+    {
+        "name": "公众号AppSecret",
+        "value": "df73ee14ab2f99479ddc4906f30e2a56"
+    },
+    "URL":
+    {
+        "name": "服务器地址",
+        "value": "df73ee14ab2f99479ddc4906f30e2a56"
+    },
+    "Token":
+    {
+        "name": "令牌",
+        "value": "p4NvS2EwZ7Xz2svSX2snx78WnmsllU40"
+    },
+    "EncodingAESKey":
+    {
+        "name": "消息加解密密钥",
+        "value": "rR3sCoXSXkKBSyRxMZy8o26S2iK1P2C86C8No8SskcM"
+    },
+    "debug":
+    {
+        "name": "调试模式",
+        "value": true
+    },
+    "jsApiList":{
+        "name": "JSAPI列表",
+        "value": ["onMenuShareTimeline"]
+    },
+    "versions":
+    {
         "name": "版本号",
         "value": "3.0"
     }

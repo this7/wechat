@@ -10,6 +10,7 @@
  * @link      http://www.ub-7.com
  */
 namespace this7\wechat\build;
+use \Exception;
 
 /**
  * 基础接口
@@ -121,13 +122,97 @@ CODEJS;
      * @param    string     $value [description]
      * @return   [type]            [description]
      */
-    public function userAuthorization($value = '') {
+    public function userAuthorization() {
         #返回Token信息
         $accessToken = $this->getUserAccessToken($_GET['code']);
+        $reverse     = $this->isAttention($accessToken['openid']);
         #获取跳转URL地址
-        $url = urldecode($_GET['state']) . "/access_token/" . $accessToken['access_token'] . "/openid/" . $accessToken['openid'];
+        $url = urldecode($_GET['state']) . "/openid/" . $accessToken['openid'] . "/subscribe/" . $reverse['subscribe'];
         #授权跳转
         redirect($url);
+        exit(1);
+    }
+
+    /**
+     * 判断是否关注
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-06
+     * @param    string     $openid       [description]
+     * @return   boolean                  [description]
+     */
+    public function isAttention($openid = '') {
+        try {
+            $access_token = $this->getAccessToken();
+            #设置URL地址
+            $url = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=$access_token&openid=$openid&lang=zh_CN";
+            #提交数据
+            $res = to_array($this->httpGet($url));
+            if (isset($res['subscribe'])) {
+                return $res;
+            } else {
+                throw new Exception($res['errmsg'], $res['errcode']);
+            }
+        } catch (Exception $e) {
+            debug::exception($e);
+        }
+    }
+
+    /**
+     * 微信登录[API]-system/wechat/login【直接调用】
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-06
+     * @param    string     $url      授权的URL地址
+     * @param    string     $scope    授权形式
+     * @param    string     $type     授权数据提交
+     * @param    string     $callback 授权回调地址
+     * @return   [type]               [description]
+     */
+    public function login($url = "", $scope = 'snsapi_base', $type = "get", $callback = "-1") {
+        $state    = isset($_GET['url']) ? $_GET['url'] : urlencode($url);
+        $scope    = isset($_GET['scope']) ? $_GET['scope'] : $scope;
+        $type     = isset($_GET['type']) ? $_GET['type'] : $type;
+        $callback = isset($_GET['callback']) ? urldecode($_GET['callback']) : $callback;
+        #获取授权页面
+        $redirect = urlencode(ROOT . '/' . md5('wechat') . "_wechat/type/" . $type . "/callback/" . $callback);
+        #设置跳转URl地址
+        $redirect = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=$this->appId&redirect_uri=$redirect&response_type=code&scope=$scope&state=$state#wechat_redirect";
+        redirect($redirect);
+    }
+
+    /**
+     * 微信登录[API]-代理快捷接口【直接调用】
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-06
+     * @param    string     $url      授权的URL地址
+     * @param    string     $scope    授权形式
+     * @param    string     $type     授权数据提交
+     * @param    string     $callback 授权回调地址
+     * @return   [type]               [description]
+     */
+    public function agency($url = "", $scope = 'snsapi_base', $type = "get", $callback = "-1") {
+        $agency = C("wechat", "agency");
+        try {
+            if (empty($agency)) {
+                throw new Exception("代理地址不能为空", 10003);
+            }
+            $url      = urlencode($url);
+            $callback = urlencode($callback);
+            $url      = trim($agency, "/") . "/system/wechat/login/url/$url/scope/$scope/type/$type/callback/$callback";
+            redirect($url);
+        } catch (Exception $e) {
+            debug::exception($e);
+        }
+    }
+
+    /**
+     * 微信回调
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-06
+     * @param    string     $value [description]
+     * @return   function          [description]
+     */
+    public function callback($value = '') {
+        # code...
     }
 
     /**
@@ -201,7 +286,6 @@ CODEJS;
             $url  = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=$this->appId&secret=$this->appSecret";
             $res  = to_array($this->httpGet($url));
             $data = array();
-            P($res);
             #返回Token信息
             $access_token = $res['access_token'];
             if ($access_token) {
@@ -214,7 +298,13 @@ CODEJS;
         }
         return $access_token;
     }
-
+    /**
+     * 获取URL请求
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @param    [type]     $url [description]
+     * @return   [type]          [description]
+     */
     private function httpGet($url) {
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -231,13 +321,173 @@ CODEJS;
         return $res;
     }
 
-    private function get_php_file($filename) {
-        return trim(substr(file_get_contents($filename), 15));
+    /**
+     * 获取URL请求
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @param    [type]     $url [description]
+     * @return   [type]          [description]
+     */
+    private function httpPost($url, $data) {
+        $curl     = curl_init();
+        $header[] = "Content-Type:application/json;charset=utf-8";
+        if (!empty($header)) {
+            curl_setopt($curl, CURLOPT_HTTPHEADER, $header); //设置 HTTP 头字段的数组。格式： array('Content-type: text/plain', 'Content-length: 100')
+        }
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 500);
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data, 320));
+        #为保证第三方服务器与微信服务器之间数据传输的安全性，所有微信接口采用https方式调用，必须使用下面2行代码打开ssl安全校验。
+        #如果在部署过程中代码在此处验证失败，请到 http://curl.haxx.se/ca/cacert.pem 下载新的证书判别文件。
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        $res = curl_exec($curl);
+        curl_close($curl);
+        return $res;
     }
-    private function set_php_file($filename, $content) {
-        $fp = fopen($filename, "w");
-        fwrite($fp, "<?php exit();?>" . $content);
-        fclose($fp);
+    /********************************************************************************************************************
+     ********************************************************************************************************************
+     *****************************************************【第三方库】*****************************************************
+     ********************************************************************************************************************
+     ********************************************************************************************************************/
+    /**
+     * 第三方发送消息给公众平台
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @return   [type]     [description]
+     */
+    public function thirdPartiesMessages() {
+        $encodingAesKey = C("wechat", "encodingAesKey");
+        $token          = C("wechat", "token");
+        $appId          = C("wechat", "componentAppid");
+        $pc             = new WXBizMsgCrypt($token, $encodingAesKey, $appId);
+        $format         = file_get_contents('php://input');
+        #第三方收到公众号平台发送的消息
+        $msg     = "";
+        $errCode = $pc->decryptMsg($_GET['msg_signature'], $_GET['timestamp'], $_GET['nonce'], $format, $msg);
+        if ($errCode == 0) {
+            cache::set("ComponentVerifyTicket", $msg);
+            echo "success";
+        } else {
+            echo $errCode;
+        }
+        exit();
+    }
+
+    /**
+     * 获取ComponentVerifyTicket
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @param    string     $value [description]
+     */
+    public function getComponentVerifyTicket() {
+        $msg = cache::get("ComponentVerifyTicket");
+        $xml = new \DOMDocument();
+        $xml->loadXML($msg);
+        $ComponentVerifyTicket = $xml->getElementsByTagName('ComponentVerifyTicket')->item(0)->nodeValue;
+        if ($ComponentVerifyTicket) {
+            return $ComponentVerifyTicket;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * 获取第三方Token
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @return   [type]     [description]
+     */
+    public function componentAccessToken() {
+        $key  = md5(__FILE__ . 'component_access_token');
+        $data = to_array(cache::get($key));
+        if (!cache::check($key) || $data['expire_time'] < time()) {
+            #提交URL地址
+            $url  = "https://api.weixin.qq.com/cgi-bin/component/api_component_token";
+            $data = array(
+                "component_appid"         => C("wechat", "componentAppid"),
+                "component_appsecret"     => C("wechat", "componentSecret"),
+                "component_verify_ticket" => $this->getComponentVerifyTicket(),
+            );
+            $res = to_array($this->httpPost($url, $data));
+            #返回Token信息
+            $access_token = $res['component_access_token'];
+            if ($access_token) {
+                $data['expire_time']            = time() + 7000;
+                $data['component_access_token'] = $access_token;
+                cache::set($key, to_json($data));
+            }
+        } else {
+            $access_token = $data['component_access_token'];
+        }
+        return $access_token;
+    }
+
+    /**
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @return   [type]            [description]
+     */
+    public function getPreAuthCode() {
+        $key  = md5(__FILE__ . 'pre_auth_code');
+        $data = to_array(cache::get($key));
+        if (!cache::check($key) || $data['expire_time'] < time()) {
+            $component_access_token = $this->componentAccessToken();
+            #提交URL地址
+            $url  = "https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode?component_access_token=$component_access_token";
+            $data = array(
+                "component_appid" => C("wechat", "componentAppid"),
+            );
+            $res = to_array($this->httpPost($url, $data));
+            #返回Token信息
+            $access_token = $res['pre_auth_code'];
+            if ($access_token) {
+                $data['expire_time']   = time() + 500;
+                $data['pre_auth_code'] = $access_token;
+                cache::set($key, to_json($data));
+            }
+        } else {
+            $access_token = $data['pre_auth_code'];
+        }
+        return $access_token;
+    }
+
+    /**
+     * 绑定授权接口-【直接调用】
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-07
+     * @param    string     $value [description]
+     * @return   [type]            [description]
+     */
+    public function bindcomponent() {
+        $component_appid = C("wechat", "componentAppid");
+        $pre_auth_code   = $this->getPreAuthCode();
+        $redirect_uri    = urlencode(ROOT . '/' . md5('Wechat authorization callback') . "_wechat");
+        $auth_type       = 3;
+        $url             = "https://mp.weixin.qq.com/safe/bindcomponent?action=bindcomponent&auth_type=3&no_scan=1&component_appid=$component_appid&pre_auth_code=$pre_auth_code&redirect_uri=$redirect_uri&auth_type=$auth_type#wechat_redirect";
+        return $url;
+    }
+
+    public function demo($value = '') {
+
+        $url = "你好";
+        include_once 'phpqrcode.php';
+        $value                = "www.this7.com"; //二维码内容
+        $errorCorrectionLevel = 'L'; //容错级别
+        $matrixPointSize      = 5; //生成图片大小
+        //生成二维码图片
+        $filename = dirname(__FILE__) . '/' . microtime() . '.png';
+        \QRcode::png($value, false, $errorCorrectionLevel, $matrixPointSize, 2);
+        // $QR = $filename; //已经生成的原始二维码图片文件
+        // $QR = imagecreatefromstring(file_get_contents($QR));
+        // //输出图片
+        // imagepng($QR, 'qrcode.png');
+        // imagedestroy($QR);
+        // return '<img src="qrcode.png" alt="使用微信扫描支付">';
+
     }
 
 }

@@ -34,9 +34,35 @@
         "name": "调试模式",
         "value": true
     },
-    "jsApiList":{
+    "jsApiList":
+    {
         "name": "JSAPI列表",
         "value": ["onMenuShareTimeline"]
+    },
+    "agency":
+    {
+        "name": "代理授权地址",
+        "value": "https://wechat.ub-7.com"
+    },
+    "componentAppid":
+    {
+        "name": "开放平台APPID",
+        "value": "wx5b8aab8749409ab7"
+    },
+    "componentSecret":
+    {
+        "name": "开放平台Secret",
+        "value": "03e98f9997ccbbd51aab153a913fb0ad"
+    },
+    "encodingAesKey":
+    {
+        "name": "消息加解密Key",
+        "value": "rR3sCoXSXkKBSyRxMZy8o26S2iK1P2C86C8No8SskcM"
+    },
+    "token":
+    {
+        "name": "消息校验Token",
+        "value": "p4NvS2EwZ7Xz2svSX2snx78WnmsllU40"
     },
     "versions":
     {

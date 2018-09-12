@@ -262,7 +262,7 @@ CODEJS;
             if ($ticket) {
                 $data['expire_time']  = time() + 7000;
                 $data['jsapi_ticket'] = $ticket;
-                cache::set($key, to_json($data));
+                cache::set($key, to_json($data), 7000);
             }
         } else {
             $ticket = $data['jsapi_ticket'];
@@ -291,7 +291,7 @@ CODEJS;
             if ($access_token) {
                 $data['expire_time']  = time() + 7000;
                 $data['access_token'] = $access_token;
-                cache::set($key, to_json($data));
+                cache::set($key, to_json($data), 7000);
             }
         } else {
             $access_token = $data['access_token'];
@@ -418,7 +418,7 @@ CODEJS;
             if ($access_token) {
                 $data['expire_time']            = time() + 7000;
                 $data['component_access_token'] = $access_token;
-                cache::set($key, to_json($data));
+                cache::set($key, to_json($data), 7000);
             }
         } else {
             $access_token = $data['component_access_token'];
@@ -447,7 +447,7 @@ CODEJS;
             if ($access_token) {
                 $data['expire_time']   = time() + 500;
                 $data['pre_auth_code'] = $access_token;
-                cache::set($key, to_json($data));
+                cache::set($key, to_json($data), 7000);
             }
         } else {
             $access_token = $data['pre_auth_code'];
@@ -463,31 +463,168 @@ CODEJS;
      * @return   [type]            [description]
      */
     public function bindcomponent() {
+        $url             = isset($_GET['url']) ? $_GET['url'] : '-1';
+        $uid             = isset($_GET['uid']) ? $_GET['uid'] : '-1';
         $component_appid = C("wechat", "componentAppid");
         $pre_auth_code   = $this->getPreAuthCode();
-        $redirect_uri    = urlencode(ROOT . '/' . md5('Wechat authorization callback') . "_wechat");
+        $redirect_uri    = urlencode(ROOT . '/' . md5('Wechat authorization callback') . "_wechat/url/" . $url . '/uid/' . $uid);
         $auth_type       = 3;
         $url             = "https://mp.weixin.qq.com/safe/bindcomponent?action=bindcomponent&auth_type=3&no_scan=1&component_appid=$component_appid&pre_auth_code=$pre_auth_code&redirect_uri=$redirect_uri&auth_type=$auth_type#wechat_redirect";
-        return $url;
+        $this7qrcode     = qrcode::base64($url);
+        require dirname(dirname(__FILE__)) . "/bin/authorization.php";
+        exit();
     }
 
-    public function demo($value = '') {
-
-        $url = "你好";
-        include_once 'phpqrcode.php';
-        $value                = "www.this7.com"; //二维码内容
-        $errorCorrectionLevel = 'L'; //容错级别
-        $matrixPointSize      = 5; //生成图片大小
-        //生成二维码图片
-        $filename = dirname(__FILE__) . '/' . microtime() . '.png';
-        \QRcode::png($value, false, $errorCorrectionLevel, $matrixPointSize, 2);
-        // $QR = $filename; //已经生成的原始二维码图片文件
-        // $QR = imagecreatefromstring(file_get_contents($QR));
-        // //输出图片
-        // imagepng($QR, 'qrcode.png');
-        // imagedestroy($QR);
-        // return '<img src="qrcode.png" alt="使用微信扫描支付">';
-
+    /**
+     * 第三方授权回调地址
+     * [FunctionName description]
+     * @param string $value [description]
+     */
+    public function thirdAuthorizeCallback($code = '') {
+        $component_access_token = $this->componentAccessToken();
+        $data                   = array(
+            "component_appid"    => C("wechat", "componentAppid"),
+            "authorization_code" => $code['auth_code'],
+        );
+        #提交URL地址
+        $url = "https://api.weixin.qq.com/cgi-bin/component/api_query_auth?component_access_token=$component_access_token";
+        $res = to_array($this->httpPost($url, $data));
+        if (isset($res['authorization_info'])) {
+            $data = $res['authorization_info'];
+            #设置存储信息
+            $key = md5($code['uid'] . md5($code['uid'] . 'thirdAuthorizeCallback') . "_wechat");
+            #设置缓存时间
+            $data['expire_time'] = time() + 7000;
+            F($key, to_json($data));
+            if ($code['url'] != "-1") {
+                $file = dirname(dirname(__FILE__)) . "/bin/successful.html";
+                echo file_get_contents($file);
+            } else {
+                redirect($code['url']);
+            }
+        } else {
+            echo "授权失败";
+        }
+        exit();
     }
 
+    /**
+     * 获取第三方授权Token
+     * @Author   Sean       Yan
+     * @DateTime 2018-08-09
+     * @return   [type]     [description]
+     * 如果是企业号用以下URL获取access_token
+     * qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=$this->appId&corpsecret=$this->appSecret;
+     */
+    private function getAuthorizerAccessToken($uid) {
+        $access_token = false;
+        #获取数据信息
+        $info = $this->getUidAppid($uid);
+        if ($info && $info['expire_time'] < time()) {
+            $component_access_token = $this->componentAccessToken();
+            #提交URL地址
+            $url  = "https://api.weixin.qq.com/cgi-bin/component/api_authorizer_token?component_access_token=$component_access_token";
+            $res  = to_array($this->httpGet($url));
+            $data = array(
+                "component_appid"          => C("wechat", "componentAppid"),
+                "authorizer_appid"         => $info['authorizer_appid'],
+                "authorizer_refresh_token" => $info['authorizer_refresh_token'],
+            );
+            #返回Token信息
+            $access_token = $res['authorizer_access_token'];
+            if ($access_token) {
+                $info['expire_time']              = time() + 7000;
+                $info['authorizer_access_token']  = $access_token;
+                $info['authorizer_refresh_token'] = $res['authorizer_refresh_token'];
+                F($key, to_json($info));
+            }
+        } else {
+            $access_token = $data['authorizer_access_token'];
+        }
+        return $access_token;
+    }
+
+    /**
+     * 获取对应UID的APPid或授权信息
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-11
+     * @param    string     $uid  [description]
+     * @param    string     $type [description]
+     * @return   [type]           [description]
+     */
+    public function getUidAppid($uid = '', $type = "all") {
+        $key  = md5($uid . md5($uid . 'thirdAuthorizeCallback') . "_wechat");
+        $data = to_array(F($key, '[get]'));
+        if ($data) {
+            switch ($type) {
+            case 'appid':
+                return $data['authorizer_appid'];
+                break;
+            default:
+                return $data;
+                break;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * 第三方授权信息-小程序相同
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-12
+     * @return   [type]            [description]
+     */
+    public function thirdAccountInformation($uid = '') {
+        $component_access_token = $this->componentAccessToken();
+        #提交数据
+        $data = array(
+            "component_appid"  => C("wechat", "componentAppid"),
+            "authorizer_appid" => $this->getUidAppid($uid, "appid"),
+        );
+        #提交的URL地址
+        $url = "https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_info?component_access_token=$component_access_token";
+        $res = to_array($this->httpPost($url, $data));
+        if ($res && isset($res['authorizer_info'])) {
+            return $res;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * 第三发消息微信回调
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-06
+     * @param    string     $value [description]
+     * @return   function          [description]
+     */
+    public function thirdCallback($code) {
+        P($code);
+        $encodingAesKey = C("wechat", "encodingAesKey");
+        $token          = C("wechat", "token");
+        $appId          = C("wechat", "componentAppid");
+        $pc             = new WXBizMsgCrypt($token, $encodingAesKey, $appId);
+        $format         = file_get_contents('php://input');
+        #第三方收到公众号平台发送的消息
+        $msg     = "";
+        $errCode = $pc->decryptMsg($code['msg_signature'], $code['timestamp'], $code['nonce'], $format, $msg);
+        if ($errCode == 0) {
+            echo $msg;
+        } else {
+            echo $errCode;
+        }
+        exit();
+    }
+
+    /**
+     * 第三方消息加密
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-12
+     * @param    string     $value [description]
+     * @return   [type]            [description]
+     */
+    public function thirdMessageEncryption($appId = '') {
+        # code...
+    }
 }

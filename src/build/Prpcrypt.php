@@ -30,9 +30,7 @@ class Prpcrypt {
      * @return string 加密后的密文
      */
     public function encrypt($text, $appid) {
-        echo 77777;
-        echo $text;
-        exit();
+
         try {
             //获得16位随机字符串，填充到明文之前
             $random = $this->getRandomStr();
@@ -54,11 +52,10 @@ class Prpcrypt {
             //使用BASE64对加密后的字符串进行编码
             return array(ErrorCode::$OK, base64_encode($encrypted));
         } catch (Exception $e) {
-            print $e;
-            //return array(ErrorCode::$EncryptAESError, null);
+            //print $e;
+            return array(ErrorCode::$EncryptAESError, null);
         }
     }
-
     /**
      * 对密文进行解密
      * @param string $encrypted 需要解密的密文
@@ -75,8 +72,10 @@ class Prpcrypt {
 
             //解密
             $decrypted = mdecrypt_generic($module, $ciphertext_dec);
+
             mcrypt_generic_deinit($module);
             mcrypt_module_close($module);
+
         } catch (Exception $e) {
             return array(ErrorCode::$DecryptAESError, null);
         }

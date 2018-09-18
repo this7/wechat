@@ -25,6 +25,102 @@ class base {
         $this->appSecret = C("wechat", "appSecret");
     }
 
+    public function demo($value = '') {
+        P($value);
+        echo "我是微信demo";
+    }
+
+    /**
+     * 微信路由地址
+     * @Author   Sean       Yan
+     * @DateTime 2018-08-09
+     * @param    string     $url [description]
+     * @return   [type]            [description]
+     */
+    public function wechatURl($url = '') {
+        $weixin = array('system', 'wechat');
+        $string = trim($_SERVER['REQUEST_URI'], "/");
+        #判断是否是微信链接-内部跳转链接
+        if (strstr($string, md5('wechat') . "_wechat")) {
+            $weixin[] = 'userAuthorization';
+            #获取自定义数据 4910_wechat/type/get/callback/-1?code=
+            #为了获取URL地址中间4910_wechat到？之间的数据为自定义参数
+            $wechat = md5('wechat') . "_wechat";
+            $str    = strlen($wechat);
+            $len    = strrpos($string, '?');
+            $num    = $len - $str;
+            $new    = trim(substr($string, $str, $num), '/');
+            $weixin = array_merge($weixin, explode("/", $new));
+            #格式化数据
+            $pieces = explode("?", $string);
+            parse_str($pieces[1], $array);
+            foreach ($array as $key => $value) {
+                $weixin[] = $key;
+                $weixin[] = $value;
+            }
+            return $weixin;
+        }
+        #第三方-授权事件接收URL  md5("Wechat Third-party) . "_wechat"; //事件回调
+        elseif (strstr($string, md5('Wechat Third-party callback') . "_wechat")) {
+            #thirdPartiesMessages
+            $weixin[] = 'thirdPartiesMessages';
+            $pieces   = explode("?", $string);
+            if (isset($pieces[1]) && !empty($pieces[1])) {
+                parse_str($pieces[1], $array);
+                foreach ($array as $key => $value) {
+                    $weixin[] = $key;
+                    $weixin[] = $value;
+                }
+            }
+            return $weixin;
+        }
+        #第三方-授权事件回调地址
+        elseif (strstr($string, md5('Wechat authorization callback') . "_wechat")) {
+            $weixin[] = 'thirdAuthorizeCallback';
+            $wechat   = md5('Wechat Third-party callback') . "_wechat";
+            #获取中间跳转地址
+            $str    = strlen($wechat);
+            $len    = strrpos($string, '?');
+            $num    = $len - $str;
+            $new    = trim(substr($string, $str, $num), '/');
+            $weixin = array_merge($weixin, explode("/", $new));
+            #格式化数据
+            $pieces = explode("?", $string);
+            if (isset($pieces[1]) && !empty($pieces[1])) {
+                parse_str($pieces[1], $array);
+                foreach ($array as $key => $value) {
+                    $weixin[] = $key;
+                    $weixin[] = $value;
+                }
+            }
+            return $weixin;
+        }
+        #第三方-消息与事件接收URL
+        elseif (strstr($string, md5('Wechat callback') . "_wechat")) {
+            $weixin[] = 'thirdCallback';
+            $wechat   = md5('Wechat callback') . "_wechat";
+            #获取中间跳转地址
+            $str    = strlen($wechat);
+            $len    = strrpos($string, '?');
+            $num    = $len - $str;
+            $new    = trim(substr($string, $str, $num), '/');
+            $weixin = array_merge($weixin, explode("/", $new));
+            #格式化数据
+            $pieces = explode("?", $string);
+            if (isset($pieces[1]) && !empty($pieces[1])) {
+                parse_str($pieces[1], $array);
+                foreach ($array as $key => $value) {
+                    $weixin[] = $key;
+                    $weixin[] = $value;
+                }
+            }
+            return $weixin;
+        } else {
+            return $url;
+        }
+
+    }
+
     /**
      * 获取前端配置JS代码
      * @Author   Sean       Yan

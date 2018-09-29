@@ -37,7 +37,7 @@ class base {
      * @param    string     $url [description]
      * @return   [type]            [description]
      */
-    public function wechatURl($url = '') {
+    public function wechatURL($url = '') {
         $weixin = array('system', 'wechat');
         $string = trim($_SERVER['REQUEST_URI'], "/");
         #判断是否是微信链接-内部跳转链接
